@@ -527,9 +527,16 @@ app.get('/api/cs-problems', async (req, res) => {
 });
 
 // ============================================================
+// Healthcheck Endpoint for Railway
+// ============================================================
+app.get('/', (req, res) => {
+    res.status(200).send('OK');
+});
+
+// ============================================================
 // Start the server
 // ============================================================
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-    console.log(`Backend server running on http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Backend server running on http://0.0.0.0:${PORT}`);
 });
