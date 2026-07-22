@@ -154,6 +154,19 @@ const DIAGRAM_EXCLUSION_CLAUSE = `
 // ============================================================
 app.get('/api/subjects', async (req, res) => {
     try {
+        if (process.env.AWS_EXECUTION_ENV) {
+            const command = new ListObjectsV2Command({
+                Bucket: process.env.STUDY_MATERIAL_BUCKET,
+                Prefix: '',
+                Delimiter: '/'
+            });
+            const response = await s3Client.send(command);
+            const subjects = (response.CommonPrefixes || [])
+                .map(prefix => prefix.Prefix.replace(/\/$/, ''))
+                .filter(name => name.length > 0);
+            return res.json({ subjects });
+        }
+
         const items = await fs.readdir(STUDY_MATERIAL_DIR, { withFileTypes: true });
         const subjects = items.filter(item => item.isDirectory()).map(item => item.name);
         res.json({ subjects });
@@ -170,9 +183,6 @@ app.get('/api/subjects/:code/materials', async (req, res) => {
     const subjectDir = path.join(STUDY_MATERIAL_DIR, code);
 
     try {
-        // Check if subject exists
-        await fs.access(subjectDir);
-        
         // Load reference books metadata
         let booksMeta = {};
         try {
@@ -189,6 +199,64 @@ app.get('/api/subjects/:code/materials', async (req, res) => {
             referenceBooks: [],
             qpa: []
         };
+
+        if (process.env.AWS_EXECUTION_ENV) {
+            const command = new ListObjectsV2Command({
+                Bucket: process.env.STUDY_MATERIAL_BUCKET,
+                Prefix: `${code}/`
+            });
+            const response = await s3Client.send(command);
+            
+            if (!response.Contents || response.Contents.length === 0) {
+                return res.status(404).json({ error: 'Subject not found in S3' });
+            }
+
+            for (const item of response.Contents) {
+                const relativePath = item.Key.substring(`${code}/`.length);
+                if (!relativePath || relativePath.endsWith('/')) continue;
+                
+                const parts = relativePath.split('/');
+                const filename = parts[parts.length - 1];
+                const lowerName = filename.toLowerCase();
+                const ext = path.extname(filename).toLowerCase();
+                
+                if (parts.length === 1) { // Root level files
+                    if (lowerName.includes('syllabus') && ext === '.pdf') {
+                        structure.syllabus = filename;
+                    } else if (ext === '.pdf') {
+                        const subjectMeta = booksMeta[code] || {};
+                        const bookInfo = subjectMeta[filename] || {
+                            title: filename.replace('.pdf', '').replace(/_/g, ' '),
+                            author: "Unknown Author",
+                            tags: ["Reference Book"]
+                        };
+                        structure.referenceBooks.push({
+                            filename,
+                            title: bookInfo.title,
+                            author: bookInfo.author,
+                            tags: bookInfo.tags || ["Reference Book"]
+                        });
+                    }
+                } else if (parts.length === 2) { // Inside a folder
+                    const folderName = parts[0];
+                    const lowerFolderName = folderName.toLowerCase();
+                    
+                    if (ext === '.pdf') {
+                        if (lowerFolderName.startsWith('mod')) {
+                            if (!structure.notes[folderName]) structure.notes[folderName] = [];
+                            structure.notes[folderName].push(filename);
+                        } else if (lowerFolderName === 'qpa' || lowerFolderName === 'maqpa') {
+                            structure.qpa.push(filename);
+                            structure.qpaFolder = folderName;
+                        }
+                    }
+                }
+            }
+            return res.json(structure);
+        }
+
+        // Check if subject exists (Local Fallback)
+        await fs.access(subjectDir);
 
         const items = await fs.readdir(subjectDir, { withFileTypes: true });
 
