@@ -107,6 +107,7 @@ function SubjectSelector({ onSelectSubject, onBackToLanding, theme, onToggleThem
               </div>
             )}
           </div>
+
         </div>
       </header>
 
@@ -190,22 +191,21 @@ function SubjectSelector({ onSelectSubject, onBackToLanding, theme, onToggleThem
           <div className="semester-columns-grid">
             
             {/* COLUMN 1: SEMESTER 1 */}
-            <section className="semester-column-card" id="semester-1-column">
-              <div className="semester-pill-header">
-                <span>Semester 1</span>
-              </div>
+            <section className="semester-column-card" id="semester-1-column" style={{ opacity: 0.85 }}>
               
               <div className="subjects-button-list">
                 {semester1Subjects.map(sub => (
                   <button 
                     key={sub.code} 
-                    className="subject-selection-btn"
+                    className="subject-selection-btn subject-card"
                     onClick={() => onSelectSubject(sub.code)}
                     id={`btn-${sub.code.toLowerCase()}`}
                   >
                     <div className="btn-content-left">
                       <span className="btn-primary-title">{sub.shortName || sub.name}</span>
-                      <span className="btn-secondary-code">{sub.code}</span>
+                      <span className="btn-secondary-code">
+                        {sub.code}
+                      </span>
                     </div>
                     <svg className="btn-arrow-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                       <polyline points="9 18 15 12 9 6" />
@@ -233,21 +233,20 @@ function SubjectSelector({ onSelectSubject, onBackToLanding, theme, onToggleThem
 
             {/* COLUMN 2: SEMESTER 2 */}
             <section className="semester-column-card" id="semester-2-column">
-              <div className="semester-pill-header">
-                <span>Semester 2</span>
-              </div>
 
               <div className="subjects-button-list">
                 {semester2Subjects.map(sub => (
                   <button 
                     key={sub.code} 
-                    className="subject-selection-btn"
+                    className="subject-selection-btn subject-card"
                     onClick={() => onSelectSubject(sub.code)}
                     id={`btn-${sub.code.toLowerCase()}`}
                   >
                     <div className="btn-content-left">
                       <span className="btn-primary-title">{sub.shortName || sub.name}</span>
-                      <span className="btn-secondary-code">{sub.code}</span>
+                      <span className="btn-secondary-code">
+                        {sub.code}
+                      </span>
                     </div>
                     <svg className="btn-arrow-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                       <polyline points="9 18 15 12 9 6" />

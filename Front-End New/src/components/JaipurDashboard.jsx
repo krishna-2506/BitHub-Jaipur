@@ -1342,7 +1342,8 @@ function JaipurDashboard({ subjectCode, theme, onToggleTheme, onBack }) {
 
           {/* Syllabus Button */}
           <button 
-            className="syllabus-btn" 
+            className="syllabus-btn module-nav-item"
+            style={{ marginTop: '0.5rem', justifyContent: 'center' }} 
             onClick={() => {
               if (subjectFiles?.syllabus) {
                 window.open(`/study-material/${subjectCode}/${subjectFiles.syllabus}`, '_blank');
@@ -1352,7 +1353,13 @@ function JaipurDashboard({ subjectCode, theme, onToggleTheme, onBack }) {
             }}
             id="syllabus-view-button"
           >
-            {subjectCode.startsWith('LAB') ? 'LAB INFO' : 'SYLLABUS'}
+            <div className="module-item-left" style={{ justifyContent: 'center', width: '100%' }}>
+              <svg className="doc-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{marginRight: '8px'}}>
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+              </svg>
+              <span>{subjectCode.startsWith('LAB') ? 'LAB INFO' : 'SYLLABUS'}</span>
+            </div>
           </button>
         </aside>
 
@@ -1649,9 +1656,10 @@ function JaipurDashboard({ subjectCode, theme, onToggleTheme, onBack }) {
                   }) : subjectData.books).map(book => (
                     <div 
                       key={book.id} 
-                      className="material-file-item" 
+                      className="material-file-item subject-card" 
                       onClick={() => handleDownloadBook(book.filename || book.title)}
                       title="Click to access study file"
+                      style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
                     >
                       <div className="file-item-left">
                         <svg className="pdf-doc-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1672,12 +1680,19 @@ function JaipurDashboard({ subjectCode, theme, onToggleTheme, onBack }) {
                           )}
                         </div>
                       </div>
-                      <span className="file-size-badge">{book.size}</span>
+                      <div className="file-item-right" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span className="file-size-badge">{book.size}</span>
+                        <svg className="download-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '18px', height: '18px', opacity: 0.6 }}>
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="7 10 12 15 17 10" />
+                          <line x1="12" y1="15" x2="12" y2="3" />
+                        </svg>
+                      </div>
                     </div>
                   ))}
                 </div>
 
-                <div className="card-footer-info">
+                <div className="card-footer-info" style={{ color: 'var(--dash-text-color)', opacity: 0.85, fontWeight: '600' }}>
                   <svg className="footer-pdf-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                     <polyline points="14 2 14 8 20 8" />
@@ -1810,9 +1825,10 @@ function JaipurDashboard({ subjectCode, theme, onToggleTheme, onBack }) {
                     filteredPapers.map(paper => (
                       <div 
                         key={paper.id} 
-                        className="paper-item-row"
+                        className="paper-item-row subject-card"
                         onClick={() => handleDownloadPaper(paper.filename)}
                         title="Click to download paper PDF"
+                        style={{ cursor: 'pointer' }}
                       >
                         <div className="paper-info-left">
                           <svg className="pdf-small-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">

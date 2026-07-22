@@ -9,6 +9,29 @@ app.use(cors());
 app.use(express.json());
 
 const STUDY_MATERIAL_DIR = path.resolve(__dirname, '../Study Material');
+
+const { S3Client, ListObjectsV2Command, GetObjectCommand } = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+const s3Client = new S3Client({ region: process.env.AWS_REGION || 'eu-north-1' });
+
+// In AWS, redirect static file requests to S3 presigned URLs
+app.get('/study-material/*', async (req, res, next) => {
+    if (!process.env.AWS_EXECUTION_ENV) {
+        return next(); // Fall through to express.static locally
+    }
+    try {
+        const key = req.params[0];
+        const command = new GetObjectCommand({
+            Bucket: process.env.STUDY_MATERIAL_BUCKET,
+            Key: key
+        });
+        const url = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+        res.redirect(url);
+    } catch (error) {
+        res.status(404).send('File not found in S3');
+    }
+});
+
 app.use('/study-material', express.static(STUDY_MATERIAL_DIR));
 
 // Serve root directory for local dev (to access old index.html)
@@ -21,7 +44,25 @@ app.get('/api/study-material/files', async (req, res) => {
         if (!folder) return res.status(400).json({ error: 'Folder required' });
         
         // Prevent path traversal
-        const safeFolder = path.normalize(folder).replace(/^(\.\.(\/|\\|$))+/, '');
+        const safeFolder = path.normalize(folder).replace(/^(\.\.(\/|\\|$))+/, '').replace(/\\/g, '/');
+        
+        if (process.env.AWS_EXECUTION_ENV) {
+            const bucketName = process.env.STUDY_MATERIAL_BUCKET;
+            const prefix = safeFolder.endsWith('/') ? safeFolder : `${safeFolder}/`;
+            const command = new ListObjectsV2Command({
+                Bucket: bucketName,
+                Prefix: prefix,
+                Delimiter: '/'
+            });
+            
+            const response = await s3Client.send(command);
+            const fileList = (response.Contents || [])
+                .map(obj => obj.Key.replace(prefix, ''))
+                .filter(name => name.length > 0);
+                
+            return res.json({ files: fileList });
+        }
+
         const targetPath = path.join(STUDY_MATERIAL_DIR, safeFolder);
         
         try {
@@ -48,6 +89,22 @@ app.get('/api/study-material/files', async (req, res) => {
     } catch (error) {
         console.error('Error listing study material files:', error);
         res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+app.get('/api/study-material/url', async (req, res) => {
+    if (!process.env.AWS_EXECUTION_ENV) {
+        return res.json({ url: `/study-material/${req.query.file}` });
+    }
+    try {
+        const command = new GetObjectCommand({
+            Bucket: process.env.STUDY_MATERIAL_BUCKET,
+            Key: req.query.file
+        });
+        const url = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+        res.json({ url });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to generate URL' });
     }
 });
 // Admin routes
@@ -536,7 +593,12 @@ app.get('/', (req, res) => {
 // ============================================================
 // Start the server
 // ============================================================
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Backend server running on http://0.0.0.0:${PORT}`);
-});
+if (process.env.AWS_EXECUTION_ENV) {
+    const serverless = require('serverless-http');
+    module.exports.handler = serverless(app);
+} else {
+    const PORT = process.env.PORT || 3001;
+    app.listen(PORT, '0.0.0.0', () => {
+        console.log(`Backend server running on http://0.0.0.0:${PORT}`);
+    });
+}

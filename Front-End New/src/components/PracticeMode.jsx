@@ -59,7 +59,7 @@ const renderLatex = (textVal) => {
     const parts = parseMixedLatex(text);
     if (parts.length === 0) return <span>{text}</span>;
     return (
-      <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'anywhere', lineHeight: '1.8', overflowX: 'auto', maxWidth: '100%' }}>
+      <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'anywhere', lineHeight: '1.8' }}>
         {parts.map((part, i) => {
           if (!part.isMath) return <span key={i}>{part.content}</span>;
           try {
@@ -80,12 +80,12 @@ const renderLatex = (textVal) => {
         ? <div style={{ overflowX: 'auto', maxWidth: '100%' }}><BlockMath math={text} /></div>
         : <div style={{ lineHeight: '1.8', overflowX: 'auto', maxWidth: '100%' }}><InlineMath math={text} /></div>;
     } catch {
-      return <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'anywhere', overflowX: 'auto', maxWidth: '100%' }}>{text}</div>;
+      return <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{text}</div>;
     }
   }
 
   // Category 3: Plain text — render as HTML
-  return <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'anywhere', lineHeight: '1.6', overflowX: 'auto', maxWidth: '100%' }}>{text}</div>;
+  return <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'anywhere', lineHeight: '1.6' }}>{text}</div>;
 };
 
 // ============================================================
@@ -527,7 +527,7 @@ function PracticeMode({ subjectCode, selectedModules, difficulties = ['Easy', 'M
           </div>
 
           {/* Question Text / LaTeX Area - Fully visible at the top */}
-          <div className="mobile-practice-question-text">
+          <div className="mobile-practice-question-text question-scroll-container">
             {renderLatex(currentQ.question_latex || currentQ.question_text)}
           </div>
 
@@ -550,7 +550,7 @@ function PracticeMode({ subjectCode, selectedModules, difficulties = ['Easy', 'M
                   style={{ width: '100%', boxSizing: 'border-box', height: '44px', borderRadius: '12px', fontSize: '0.9rem', padding: '0 12px' }}
                 />
                 {!feedbacks[currentIndex] && (
-                  <button className="pq-btn-submit" onClick={handleCheckAnswer}
+                  <button className="pq-btn-submit check-answer-btn" onClick={handleCheckAnswer}
                     disabled={loadingCheck || !(userAnswers[currentIndex] || '').trim()}
                     style={{ width: '100%', height: '42px', borderRadius: '12px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '750', background: 'var(--dash-active-module-bg)' }}>
                     {loadingCheck ? 'Checking...' : 'Check Answer'}
@@ -569,7 +569,7 @@ function PracticeMode({ subjectCode, selectedModules, difficulties = ['Easy', 'M
                     const isChecked = feedbacks[currentIndex];
                     const isCorrectChoice = choice === currentQ.final_answer;
                     
-                    let choiceClass = "mobile-mcq-option-btn";
+                    let choiceClass = "mobile-mcq-option-btn mcq-option";
                     if (isSelected) choiceClass += " selected";
                     if (isChecked) {
                       if (isCorrectChoice) choiceClass += " correct-choice";
@@ -593,7 +593,7 @@ function PracticeMode({ subjectCode, selectedModules, difficulties = ['Easy', 'M
                   })}
                 </div>
                 {!feedbacks[currentIndex] && (
-                  <button className="pq-btn-submit" onClick={handleCheckAnswer}
+                  <button className="pq-btn-submit check-answer-btn" onClick={handleCheckAnswer}
                     disabled={loadingCheck || !userAnswers[currentIndex]}
                     style={{ width: '100%', height: '42px', borderRadius: '12px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '750', background: 'var(--dash-active-module-bg)', marginTop: '4px' }}>
                     {loadingCheck ? 'Checking...' : 'Check Answer'}
@@ -747,11 +747,11 @@ function PracticeMode({ subjectCode, selectedModules, difficulties = ['Easy', 'M
                     const qStatus = statuses[idx] || 'unattempted';
                     const isActive = currentIndex === idx;
                     
-                    let btnClass = 'circle-nav-node';
-                    if (isActive) btnClass += ' active';
-                    if (qStatus === 'correct') btnClass += ' correct';
-                    else if (qStatus === 'incorrect') btnClass += ' incorrect';
-                    else if (qStatus === 'unattempted') btnClass += ' not-visited';
+                    let btnClass = 'circle-nav-node nav-grid-item';
+                    if (isActive) btnClass += ' nav-grid-item--current';
+                    if (qStatus === 'correct') btnClass += ' nav-grid-item--answered';
+                    else if (qStatus === 'incorrect') btnClass += ' nav-grid-item--flagged';
+                    else if (qStatus === 'unattempted') btnClass += ' nav-grid-item--unanswered';
 
                     return (
                       <button 
@@ -766,10 +766,6 @@ function PracticeMode({ subjectCode, selectedModules, difficulties = ['Easy', 'M
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          fontWeight: '800',
-                          border: isActive ? '2px solid var(--dash-active-module-bg)' : '1px solid var(--dash-panel-border)',
-                          background: qStatus === 'correct' ? '#2ecc71' : qStatus === 'incorrect' ? '#e74c3c' : 'var(--dash-panel-bg)',
-                          color: qStatus === 'correct' || qStatus === 'incorrect' ? '#fff' : isActive ? 'var(--dash-active-module-bg)' : 'var(--dash-text-color)',
                           cursor: 'pointer'
                         }}
                       >
@@ -860,7 +856,7 @@ function PracticeMode({ subjectCode, selectedModules, difficulties = ['Easy', 'M
             </div>
 
             {/* LaTeX Render Area */}
-            <div className="question-render-area">
+            <div className="question-render-area question-scroll-container">
               {renderLatex(currentQ.question_latex || currentQ.question_text)}
             </div>
 
@@ -879,7 +875,7 @@ function PracticeMode({ subjectCode, selectedModules, difficulties = ['Easy', 'M
                       onChange={(e) => setUserAnswers(prev => ({ ...prev, [currentIndex]: e.target.value }))}
                       onKeyDown={(e) => { if (e.key === 'Enter') handleCheckAnswer(); }}
                     />
-                    <button className="pq-btn-submit" onClick={handleCheckAnswer}
+                    <button className="pq-btn-submit check-answer-btn" onClick={handleCheckAnswer}
                       disabled={loadingCheck || !(userAnswers[currentIndex] || '').trim()}>
                       {loadingCheck ? 'Checking...' : 'Check Answer'}
                     </button>
@@ -902,7 +898,7 @@ function PracticeMode({ subjectCode, selectedModules, difficulties = ['Easy', 'M
                       const isSelected = userAnswers[currentIndex] === choice;
                       const isChecked = feedbacks[currentIndex];
                       const isCorrectChoice = choice === currentQ.final_answer;
-                      let choiceClass = "mcq-option-btn";
+                      let choiceClass = "mcq-option-btn mcq-option";
                       if (isSelected) choiceClass += " selected";
                       if (isChecked) {
                         if (isCorrectChoice) choiceClass += " correct-choice";
@@ -928,7 +924,7 @@ function PracticeMode({ subjectCode, selectedModules, difficulties = ['Easy', 'M
                     })}
                   </div>
                   {!feedbacks[currentIndex] && (
-                    <button className="pq-btn-submit" onClick={handleCheckAnswer}
+                    <button className="pq-btn-submit check-answer-btn" onClick={handleCheckAnswer}
                       disabled={loadingCheck || !userAnswers[currentIndex]} style={{ width: 'fit-content', marginTop: '0.5rem' }}>
                       {loadingCheck ? 'Checking...' : 'Check Answer'}
                     </button>
@@ -1119,7 +1115,7 @@ function PracticeMode({ subjectCode, selectedModules, difficulties = ['Easy', 'M
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
               <span style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--dash-text-muted)' }}>Progress Meter</span>
               <div className="accuracy-bar-track">
-                <div className="accuracy-bar-fill" style={{ width: `${Math.round((attemptedCount / totalQuestions) * 100)}%` }}></div>
+                <div className="accuracy-bar-fill" style={{ width: `${totalQuestions > 0 ? Math.round((attemptedCount / totalQuestions) * 100) : 0}%` }}></div>
               </div>
             </div>
           </div>
@@ -1132,11 +1128,11 @@ function PracticeMode({ subjectCode, selectedModules, difficulties = ['Easy', 'M
                 const qStatus = statuses[idx] || 'unattempted';
                 const isActive = currentIndex === idx;
                 
-                let btnClass = 'circle-nav-node';
-                if (isActive) btnClass += ' active';
-                if (qStatus === 'correct') btnClass += ' correct';
-                else if (qStatus === 'incorrect') btnClass += ' incorrect';
-                else if (qStatus === 'unattempted') btnClass += ' not-visited';
+                let btnClass = 'circle-nav-node nav-grid-item';
+                if (isActive) btnClass += ' nav-grid-item--current';
+                if (qStatus === 'correct') btnClass += ' nav-grid-item--answered';
+                else if (qStatus === 'incorrect') btnClass += ' nav-grid-item--flagged';
+                else if (qStatus === 'unattempted') btnClass += ' nav-grid-item--unanswered';
 
                 return (
                   <button 
@@ -1144,6 +1140,16 @@ function PracticeMode({ subjectCode, selectedModules, difficulties = ['Easy', 'M
                     className={btnClass}
                     onClick={() => setCurrentIndex(idx)}
                     title={`Go to Question ${idx + 1}`}
+                    style={{
+                      width: '36px',
+                      height: '36px',
+                      fontSize: '0.85rem',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer'
+                    }}
                   >
                     {idx + 1}
                   </button>
