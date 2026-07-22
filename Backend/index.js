@@ -8,28 +8,34 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const STUDY_MATERIAL_DIR = path.resolve(__dirname, '../Study Material');
+let STUDY_MATERIAL_DIR = path.resolve(__dirname, '../Study Material');
+const fsSync = require('fs');
+if (!fsSync.existsSync(STUDY_MATERIAL_DIR)) {
+    STUDY_MATERIAL_DIR = path.resolve(__dirname, 'Study Material');
+    if (!fsSync.existsSync(STUDY_MATERIAL_DIR)) {
+        STUDY_MATERIAL_DIR = path.resolve(process.cwd(), 'Study Material');
+    }
+}
 
 const { S3Client, ListObjectsV2Command, GetObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const s3Client = new S3Client({ region: process.env.AWS_REGION || 'eu-north-1' });
 
-// In AWS, redirect static file requests to S3 presigned URLs
 app.get('/study-material/*path', async (req, res, next) => {
-    if (!process.env.AWS_EXECUTION_ENV) {
-        return next(); // Fall through to express.static locally
+    if (process.env.STUDY_MATERIAL_BUCKET) {
+        try {
+            const key = req.params.path;
+            const command = new GetObjectCommand({
+                Bucket: process.env.STUDY_MATERIAL_BUCKET,
+                Key: key
+            });
+            const url = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+            return res.redirect(url);
+        } catch (error) {
+            console.warn("AWS S3 url generation failed, falling back to local:", error.message);
+        }
     }
-    try {
-        const key = req.params.path;
-        const command = new GetObjectCommand({
-            Bucket: process.env.STUDY_MATERIAL_BUCKET,
-            Key: key
-        });
-        const url = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
-        res.redirect(url);
-    } catch (error) {
-        res.status(404).send('File not found in S3');
-    }
+    return next(); // Fall through to express.static locally
 });
 
 app.use('/study-material', express.static(STUDY_MATERIAL_DIR));
@@ -46,21 +52,25 @@ app.get('/api/study-material/files', async (req, res) => {
         // Prevent path traversal
         const safeFolder = path.normalize(folder).replace(/^(\.\.(\/|\\|$))+/, '').replace(/\\/g, '/');
         
-        if (process.env.AWS_EXECUTION_ENV) {
-            const bucketName = process.env.STUDY_MATERIAL_BUCKET;
-            const prefix = safeFolder.endsWith('/') ? safeFolder : `${safeFolder}/`;
-            const command = new ListObjectsV2Command({
-                Bucket: bucketName,
-                Prefix: prefix,
-                Delimiter: '/'
-            });
-            
-            const response = await s3Client.send(command);
-            const fileList = (response.Contents || [])
-                .map(obj => obj.Key.replace(prefix, ''))
-                .filter(name => name.length > 0);
+        if (process.env.STUDY_MATERIAL_BUCKET) {
+            try {
+                const bucketName = process.env.STUDY_MATERIAL_BUCKET;
+                const prefix = safeFolder.endsWith('/') ? safeFolder : `${safeFolder}/`;
+                const command = new ListObjectsV2Command({
+                    Bucket: bucketName,
+                    Prefix: prefix,
+                    Delimiter: '/'
+                });
                 
-            return res.json({ files: fileList });
+                const response = await s3Client.send(command);
+                const fileList = (response.Contents || [])
+                    .map(obj => obj.Key.replace(prefix, ''))
+                    .filter(name => name.length > 0);
+                    
+                return res.json({ files: fileList });
+            } catch (error) {
+                console.warn("AWS S3 fetch failed, falling back to local:", error.message);
+            }
         }
 
         const targetPath = path.join(STUDY_MATERIAL_DIR, safeFolder);
@@ -93,19 +103,19 @@ app.get('/api/study-material/files', async (req, res) => {
 });
 
 app.get('/api/study-material/url', async (req, res) => {
-    if (!process.env.AWS_EXECUTION_ENV) {
-        return res.json({ url: `/study-material/${req.query.file}` });
+    if (process.env.STUDY_MATERIAL_BUCKET) {
+        try {
+            const command = new GetObjectCommand({
+                Bucket: process.env.STUDY_MATERIAL_BUCKET,
+                Key: req.query.file
+            });
+            const url = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+            return res.json({ url });
+        } catch (error) {
+            console.warn("AWS S3 url generation failed, falling back to local:", error.message);
+        }
     }
-    try {
-        const command = new GetObjectCommand({
-            Bucket: process.env.STUDY_MATERIAL_BUCKET,
-            Key: req.query.file
-        });
-        const url = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
-        res.json({ url });
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to generate URL' });
-    }
+    return res.json({ url: `/study-material/${req.query.file}` });
 });
 // Admin routes
 const adminRoutes = require('./admin_routes');
@@ -154,17 +164,24 @@ const DIAGRAM_EXCLUSION_CLAUSE = `
 // ============================================================
 app.get('/api/subjects', async (req, res) => {
     try {
-        if (process.env.AWS_EXECUTION_ENV) {
-            const command = new ListObjectsV2Command({
-                Bucket: process.env.STUDY_MATERIAL_BUCKET,
-                Prefix: '',
-                Delimiter: '/'
-            });
-            const response = await s3Client.send(command);
-            const subjects = (response.CommonPrefixes || [])
-                .map(prefix => prefix.Prefix.replace(/\/$/, ''))
-                .filter(name => name.length > 0);
-            return res.json({ subjects });
+        if (process.env.STUDY_MATERIAL_BUCKET) {
+            try {
+                const command = new ListObjectsV2Command({
+                    Bucket: process.env.STUDY_MATERIAL_BUCKET,
+                    Prefix: '',
+                    Delimiter: '/'
+                });
+                const response = await s3Client.send(command);
+                const subjects = (response.CommonPrefixes || [])
+                    .map(prefix => prefix.Prefix.replace(/\/$/, ''))
+                    .filter(name => name.length > 0);
+                
+                if (subjects.length > 0) {
+                    return res.json({ subjects });
+                }
+            } catch (error) {
+                console.warn("AWS S3 fetch failed, falling back to local:", error.message);
+            }
         }
 
         const items = await fs.readdir(STUDY_MATERIAL_DIR, { withFileTypes: true });
@@ -200,59 +217,61 @@ app.get('/api/subjects/:code/materials', async (req, res) => {
             qpa: []
         };
 
-        if (process.env.AWS_EXECUTION_ENV) {
-            const command = new ListObjectsV2Command({
-                Bucket: process.env.STUDY_MATERIAL_BUCKET,
-                Prefix: `${code}/`
-            });
-            const response = await s3Client.send(command);
-            
-            if (!response.Contents || response.Contents.length === 0) {
-                return res.status(404).json({ error: 'Subject not found in S3' });
-            }
-
-            for (const item of response.Contents) {
-                const relativePath = item.Key.substring(`${code}/`.length);
-                if (!relativePath || relativePath.endsWith('/')) continue;
+        if (process.env.STUDY_MATERIAL_BUCKET) {
+            try {
+                const command = new ListObjectsV2Command({
+                    Bucket: process.env.STUDY_MATERIAL_BUCKET,
+                    Prefix: `${code}/`
+                });
+                const response = await s3Client.send(command);
                 
-                const parts = relativePath.split('/');
-                const filename = parts[parts.length - 1];
-                const lowerName = filename.toLowerCase();
-                const ext = path.extname(filename).toLowerCase();
-                
-                if (parts.length === 1) { // Root level files
-                    if (lowerName.includes('syllabus') && ext === '.pdf') {
-                        structure.syllabus = filename;
-                    } else if (ext === '.pdf') {
-                        const subjectMeta = booksMeta[code] || {};
-                        const bookInfo = subjectMeta[filename] || {
-                            title: filename.replace('.pdf', '').replace(/_/g, ' '),
-                            author: "Unknown Author",
-                            tags: ["Reference Book"]
-                        };
-                        structure.referenceBooks.push({
-                            filename,
-                            title: bookInfo.title,
-                            author: bookInfo.author,
-                            tags: bookInfo.tags || ["Reference Book"]
-                        });
-                    }
-                } else if (parts.length === 2) { // Inside a folder
-                    const folderName = parts[0];
-                    const lowerFolderName = folderName.toLowerCase();
-                    
-                    if (ext === '.pdf') {
-                        if (lowerFolderName.startsWith('mod')) {
-                            if (!structure.notes[folderName]) structure.notes[folderName] = [];
-                            structure.notes[folderName].push(filename);
-                        } else if (lowerFolderName === 'qpa' || lowerFolderName === 'maqpa') {
-                            structure.qpa.push(filename);
-                            structure.qpaFolder = folderName;
+                if (response.Contents && response.Contents.length > 0) {
+                    for (const item of response.Contents) {
+                        const relativePath = item.Key.substring(`${code}/`.length);
+                        if (!relativePath || relativePath.endsWith('/')) continue;
+                        
+                        const parts = relativePath.split('/');
+                        const filename = parts[parts.length - 1];
+                        const lowerName = filename.toLowerCase();
+                        const ext = path.extname(filename).toLowerCase();
+                        
+                        if (parts.length === 1) { // Root level files
+                            if (lowerName.includes('syllabus') && ext === '.pdf') {
+                                structure.syllabus = filename;
+                            } else if (ext === '.pdf') {
+                                const subjectMeta = booksMeta[code] || {};
+                                const bookInfo = subjectMeta[filename] || {
+                                    title: filename.replace('.pdf', '').replace(/_/g, ' '),
+                                    author: "Unknown Author",
+                                    tags: ["Reference Book"]
+                                };
+                                structure.referenceBooks.push({
+                                    filename,
+                                    title: bookInfo.title,
+                                    author: bookInfo.author,
+                                    tags: bookInfo.tags || ["Reference Book"]
+                                });
+                            }
+                        } else if (parts.length === 2) { // Inside a folder
+                            const folderName = parts[0];
+                            const lowerFolderName = folderName.toLowerCase();
+                            
+                            if (ext === '.pdf') {
+                                if (lowerFolderName.startsWith('mod')) {
+                                    if (!structure.notes[folderName]) structure.notes[folderName] = [];
+                                    structure.notes[folderName].push(filename);
+                                } else if (lowerFolderName === 'qpa' || lowerFolderName === 'maqpa') {
+                                    structure.qpa.push(filename);
+                                    structure.qpaFolder = folderName;
+                                }
+                            }
                         }
                     }
+                    return res.json(structure);
                 }
+            } catch (error) {
+                console.warn(`AWS S3 fetch failed for ${code}, falling back to local:`, error.message);
             }
-            return res.json(structure);
         }
 
         // Check if subject exists (Local Fallback)
