@@ -15,12 +15,12 @@ const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const s3Client = new S3Client({ region: process.env.AWS_REGION || 'eu-north-1' });
 
 // In AWS, redirect static file requests to S3 presigned URLs
-app.get('/study-material/*', async (req, res, next) => {
+app.get('/study-material/*path', async (req, res, next) => {
     if (!process.env.AWS_EXECUTION_ENV) {
         return next(); // Fall through to express.static locally
     }
     try {
-        const key = req.params[0];
+        const key = req.params.path;
         const command = new GetObjectCommand({
             Bucket: process.env.STUDY_MATERIAL_BUCKET,
             Key: key
