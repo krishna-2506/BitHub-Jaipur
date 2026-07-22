@@ -2265,6 +2265,7 @@ body::after {
 
 .question-render-area .katex-display {
   margin: 1.5rem 0;
+  text-align: left;
 }
 
 /* User interaction */
@@ -2377,6 +2378,15 @@ body::after {
   color: var(--dash-text-color);
 }
 
+.solution-content-math .katex {
+  white-space: normal !important;
+}
+
+.solution-content-math .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
 .solution-final-ans-pill {
   display: inline-flex;
   align-items: center;
@@ -2396,6 +2406,12 @@ body::after {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  position: sticky;
+  top: 0;
+  padding: 1rem 0 1rem 0;
+  margin-bottom: 0;
+  background: var(--dash-panel-bg);
+  z-index: 10;
 }
 
 .btn-nav-premium {

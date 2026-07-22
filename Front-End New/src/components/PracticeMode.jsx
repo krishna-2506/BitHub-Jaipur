@@ -44,7 +44,7 @@ const parseMixedLatex = (str) => {
 // ============================================================
 // CORE LATEX RENDERER — Clean, simple, correct
 // ============================================================
-const LATEX_CMD_RE = /\\(text|frac|begin|end|sin|cos|tan|sec|log|ln|sum|prod|int|oint|left|right|pi|alpha|beta|gamma|delta|theta|sigma|phi|omega|infty|partial|nabla|sqrt|prime|quad|dots|cdot|times|div|pm|mp|vec|hat|bar|tilde|overline|underline|displaystyle|mathrm|mathbf|operatorname|binom|equiv|approx|neq|leq|geq|le|ge|langle|rangle|pmod|mod|det|max|min|lim|exp|Gamma|Delta|Theta|Lambda|Pi|Sigma|Phi|Psi|Omega)/;
+const LATEX_CMD_RE = /\\(text|frac|begin|end|sin|cos|tan|sec|log|ln|sum|prod|int|oint|left|right|pi|alpha|beta|gamma|delta|theta|sigma|phi|omega|infty|partial|nabla|sqrt|prime|quad|dots|cdot|times|div|pm|mp|vec|hat|bar|tilde|overline|underline|displaystyle|mathrm|mathbf|operatorname|binom|equiv|approx|neq|leq|geq|le|ge|langle|rangle|pmod|mod|det|max|min|lim|exp|Gamma|Delta|Theta|Lambda|Pi|Sigma|Phi|Psi|Omega)|[\^_]/;
 
 const renderLatex = (textVal) => {
   if (textVal === undefined || textVal === null) return null;
@@ -63,10 +63,11 @@ const renderLatex = (textVal) => {
         {parts.map((part, i) => {
           if (!part.isMath) return <span key={i}>{part.content}</span>;
           try {
+            const mathContent = part.content.trim().replace(/ /g, '~');
             return part.isBlock
-              ? <div key={i} style={{ overflowX: 'auto', maxWidth: '100%', margin: '0.5rem 0' }}><BlockMath math={part.content.trim()} /></div>
-              : <InlineMath key={i} math={part.content.trim()} />;
-          } catch { return <span key={i} style={{ color: '#c65575' }}>{part.content}</span>; }
+              ? <div key={i} style={{ overflowX: 'auto', maxWidth: '100%', margin: '0.5rem 0' }}><BlockMath math={mathContent} /></div>
+              : <InlineMath key={i} math={mathContent} />;
+          } catch { return <span key={i}>{part.content}</span>; }
         })}
       </div>
     );
@@ -694,7 +695,7 @@ function PracticeMode({ subjectCode, selectedModules, difficulties = ['Easy', 'M
 
               {showSolutionPanel[currentIndex] && solutions[currentIndex] && (
                 <div className="solution-container-premium" style={{ padding: '12px', borderRadius: '14px', fontSize: '0.8rem' }}>
-                  <h4 style={{ margin: '0 0 6px 0', fontSize: '0.85rem' }}>Detailed LaTeX Solution</h4>
+                  <h4 style={{ margin: '0 0 6px 0', fontSize: '0.85rem' }}>Detailed Solution</h4>
                   <div className="solution-content-math" style={{ fontSize: '0.8rem', overflowX: 'auto' }}>
                     {renderLatex(solutions[currentIndex].solutionLatex || solutions[currentIndex].solutionText)}
                   </div>
@@ -830,10 +831,28 @@ function PracticeMode({ subjectCode, selectedModules, difficulties = ['Easy', 'M
         
         {/* Left Column: Active Question Workspace */}
         <main className="practice-left-column">
-          
+
           {/* Question Box Card */}
           <div className="question-container-box">
             
+            {/* Sequential Next / Prev Controls */}
+            <div className="question-nav-controls-row">
+              <button 
+                className="btn-nav-premium"
+                onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}
+                disabled={currentIndex === 0}
+              >
+                ← Previous Question
+              </button>
+              <button 
+                className="btn-nav-premium"
+                onClick={() => setCurrentIndex(prev => Math.min(totalQuestions - 1, prev + 1))}
+                disabled={currentIndex === totalQuestions - 1}
+              >
+                Next Question →
+              </button>
+            </div>
+
             {/* Badges and tags header */}
             <div className="question-header-meta">
               <span className="badge-practice">
@@ -1047,7 +1066,7 @@ function PracticeMode({ subjectCode, selectedModules, difficulties = ['Easy', 'M
 
                 {showSolutionPanel[currentIndex] && solutions[currentIndex] && (
                   <div className="solution-container-premium">
-                    <h4>Detailed LaTeX Derivation &amp; Solution</h4>
+                    <h4>Detailed Derivation &amp; Solution</h4>
                     <div className="solution-content-math">
                       {renderLatex(solutions[currentIndex].solutionLatex || solutions[currentIndex].solutionText)}
                     </div>
@@ -1067,23 +1086,7 @@ function PracticeMode({ subjectCode, selectedModules, difficulties = ['Easy', 'M
 
           </div>
 
-          {/* Sequential Next / Prev Controls */}
-          <div className="question-nav-controls-row">
-            <button 
-              className="btn-nav-premium"
-              onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}
-              disabled={currentIndex === 0}
-            >
-              ← Previous Question
-            </button>
-            <button 
-              className="btn-nav-premium"
-              onClick={() => setCurrentIndex(prev => Math.min(totalQuestions - 1, prev + 1))}
-              disabled={currentIndex === totalQuestions - 1}
-            >
-              Next Question →
-            </button>
-          </div>
+
 
         </main>
 
